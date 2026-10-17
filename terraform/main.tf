@@ -1,5 +1,5 @@
-resource "libvirt_volume" "vm_disk" {
-  name = "${var.vm_name}.qcow2"
+resource "libvirt_volume" "ubuntu_base" {
+  name = "${var.vm_name}-ubuntu-base.qcow2"
   pool = "default"
 
   target = {
@@ -15,9 +15,31 @@ resource "libvirt_volume" "vm_disk" {
   }
 }
 
+resource "libvirt_volume" "vm_disk" {
+  name     = "${var.vm_name}.qcow2"
+  pool     = "default"
+  capacity = var.disk_size_gb * 1024 * 1024 * 1024
+
+  target = {
+    format = {
+      type = "qcow2"
+    }
+  }
+
+  backing_store = {
+    path = libvirt_volume.ubuntu_base.path
+    format = {
+      type = "qcow2"
+    }
+  }
+}
+
 resource "libvirt_cloudinit_disk" "cloudinit" {
-  name      = "${var.vm_name}-cloudinit"
-  user_data = file("${path.module}/cloud-init/user-data.yaml")
+  name = "${var.vm_name}-cloudinit"
+  user_data = templatefile("${path.module}/cloud-init/user-data.yaml", {
+    vm_name        = var.vm_name
+    ssh_public_key = trimspace(file(pathexpand(var.ssh_public_key_path)))
+  })
   meta_data = file("${path.module}/cloud-init/meta-data.yaml")
 }
 

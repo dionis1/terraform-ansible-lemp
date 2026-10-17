@@ -1,6 +1,6 @@
 #cloud-config
 
-hostname: lemp-server
+hostname: ${jsonencode(vm_name)}
 manage_etc_hosts: true
 
 users:
@@ -10,7 +10,7 @@ users:
     shell: /bin/bash
     sudo: ALL=(ALL) NOPASSWD:ALL
     ssh_authorized_keys:
-      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICbZF4t9H0JIxCQJzlb1EzAQc2e548VMynYlKx7hfUc3 terraform-lemp
+      - ${jsonencode(ssh_public_key)}
 
 ssh_pwauth: false
 
@@ -23,3 +23,9 @@ packages:
 
 runcmd:
   - systemctl enable --now qemu-guest-agent
+
+# Expand the root partition and filesystem on first boot.
+growpart:
+  mode: auto
+  devices: ['/']
+resize_rootfs: true

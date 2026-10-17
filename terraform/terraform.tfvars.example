@@ -2,3 +2,4 @@ vm_name      = "lemp-server"
 memory_mb    = 2048
 vcpu_count   = 2
 disk_size_gb = 20
+ssh_public_key_path = "~/.ssh/terraform-lemp.pub"

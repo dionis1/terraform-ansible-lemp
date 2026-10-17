@@ -17,7 +17,13 @@ variable "vcpu_count" {
 }
 
 variable "disk_size_gb" {
-  description = "Disk size in GB"
+  description = "VM disk capacity in GiB (must be at least the base image virtual size)"
   type        = number
   default     = 20
+}
+
+variable "ssh_public_key_path" {
+  description = "Path to the SSH public key authorized for the devops user"
+  type        = string
+  default     = "~/.ssh/terraform-lemp.pub"
 }
