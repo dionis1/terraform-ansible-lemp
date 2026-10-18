@@ -75,18 +75,44 @@ resource "libvirt_domain" "vm" {
   }
 
   devices = {
+    controllers = [
+      {
+        type  = "virtio-serial"
+        index = 0
+      }
+    ]
+
+    channels = [
+      {
+        source = {
+          unix = {
+            mode = "bind"
+          }
+        }
+
+        target = {
+          virt_io = {
+            name = "org.qemu.guest_agent.0"
+          }
+        }
+      }
+    ]
+
     disks = [
       {
         device = "disk"
+
         driver = {
           name = "qemu"
           type = "qcow2"
         }
+
         source = {
           file = {
             file = libvirt_volume.vm_disk.path
           }
         }
+
         target = {
           dev = "vda"
           bus = "virtio"
@@ -94,19 +120,23 @@ resource "libvirt_domain" "vm" {
       },
       {
         device = "cdrom"
+
         driver = {
           name = "qemu"
           type = "raw"
         }
+
         source = {
           file = {
             file = libvirt_volume.cloudinit_iso.path
           }
         }
+
         target = {
           dev = "hdd"
           bus = "ide"
         }
+
         read_only = true
       }
     ]
@@ -116,6 +146,7 @@ resource "libvirt_domain" "vm" {
         model = {
           type = "virtio"
         }
+
         source = {
           network = {
             network = "default"
