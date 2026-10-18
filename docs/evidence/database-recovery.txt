@@ -1,0 +1,19 @@
+Started: 2026-10-18T12:42:20Z
+PASS: HTTP 200 and application database connection confirmed (http://127.0.0.1:8080/)
+PASS: logical backup written with mode 0600: /var/backups/lemp/20261018T124221Z-52649.sql.gz
+PASS: isolated backup restore; marker and application logical dump hashes match
+ Container devops-lemp-db-1 Recreate 
+ Container devops-lemp-db-1 Recreated 
+ Container devops-lemp-db-1 Starting 
+ Container devops-lemp-db-1 Started 
+PASS: database container recreated; persistent marker retained
+PASS: HTTP 200 and application database connection confirmed (http://127.0.0.1:8080/)
+ Container devops-lemp-db-1 Stopping 
+ Container devops-lemp-db-1 Stopped 
+FAIL: expected HTTP 200, received 503
+PASS: database outage returns HTTP 503 and smoke test exits nonzero
+ Container devops-lemp-db-1 Starting 
+ Container devops-lemp-db-1 Started 
+PASS: HTTP 200 and application database connection confirmed (http://127.0.0.1:8080/)
+PASS: database recovered and application healthy
+Completed: 2026-10-18T12:42:51Z

@@ -24,5 +24,4 @@
 - name: Ensure qemu-guest-agent is running
   ansible.builtin.systemd:
     name: qemu-guest-agent
-    enabled: true
     state: started

@@ -35,6 +35,7 @@
     owner: root
     group: root
     mode: "0644"
+  register: lemp_php_dockerfile
 
 - name: Copy PHP application
   ansible.builtin.copy:
@@ -58,7 +59,7 @@
   community.docker.docker_compose_v2:
     project_src: /opt/lemp
     state: present
-    build: policy
+    build: "{{ 'always' if lemp_php_dockerfile.changed else 'policy' }}"
 
 - name: Verify LEMP application is healthy
   ansible.builtin.uri:

@@ -1,4 +1,14 @@
 resource "libvirt_volume" "ubuntu_base" {
+  lifecycle {
+    precondition {
+      condition = try(
+        filesha256("${path.module}/ubuntu-24.04-server-cloudimg-amd64.img") == split(" ", trimspace(file("${path.module}/cloud-image.sha256")))[0],
+        false
+      )
+      error_message = "Ubuntu image missing or checksum mismatch. Run scripts/download-cloud-image.sh from the repository root."
+    }
+  }
+
   name = "${var.vm_name}-ubuntu-base.qcow2"
   pool = "default"
 

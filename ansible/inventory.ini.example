@@ -1,5 +1,5 @@
 [web]
-lemp-server ansible_host=192.168.122.88
+lemp-server ansible_host=192.0.2.10
 
 [web:vars]
 ansible_user=devops

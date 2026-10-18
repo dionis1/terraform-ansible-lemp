@@ -1,0 +1,10 @@
+libvirt_cloudinit_disk.cloudinit: Refreshing state... [id=de799fee05dee8e7]
+libvirt_volume.ubuntu_base: Refreshing state... [id=/var/lib/libvirt/images/lemp-server-ubuntu-base.qcow2]
+libvirt_volume.cloudinit_iso: Refreshing state... [id=/var/lib/libvirt/images/lemp-server-seed.iso]
+libvirt_volume.vm_disk: Refreshing state... [id=/var/lib/libvirt/images/lemp-server.qcow2]
+libvirt_domain.vm: Refreshing state... [name=lemp-server]
+
+No changes. Your infrastructure matches the configuration.
+
+Terraform has compared your real infrastructure against your configuration
+and found no differences, so no changes are needed.

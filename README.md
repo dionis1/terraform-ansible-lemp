@@ -23,10 +23,14 @@ The Terraform VM includes the virtio channel required by the QEMU guest agent.
 ## Repository
 
 - `terraform/`: VM, base image, sized QCOW2 overlay, cloud-init and provider lock.
-- `ansible/`: inventory, roles, collection requirements and Vault-encrypted credentials.
+- `ansible/`: example inventory, roles, pinned collection and Vault-encrypted credentials.
 - `docker/`: Compose stack, NGINX configuration, PHP Dockerfile and credential example.
 - `app/index.php`: application and live database connectivity check.
+- `scripts/generate-inventory.py`: Terraform-to-Ansible inventory handoff.
+- `scripts/download-cloud-image.sh`: checksum-verified image download.
 - `scripts/smoke-test.sh`: independent HTTP/database smoke test.
+- `scripts/db-recovery-test.sh`: backup restore, persistence and outage exercise.
+- `docs/evidence/`: recorded validation results from the lab.
 
 ## Prerequisites
 
@@ -41,13 +45,17 @@ The committed lock file selects dmacvicar/libvirt 0.9.9. Configuration uses the
 From the repository root:
 
 ```bash
+./scripts/download-cloud-image.sh
 cd terraform
-curl --fail --location --output ubuntu-24.04-server-cloudimg-amd64.img \
-  https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img
 qemu-img info ubuntu-24.04-server-cloudimg-amd64.img
 ```
 
-The image is ignored by Git. This release URL is mutable and not checksum-pinned.
+The image is ignored by Git. The download script pins Ubuntu's dated
+`release-20260926` build and verifies the SHA-256 in `terraform/cloud-image.sha256`.
+It refuses to overwrite an existing image that fails verification. Terraform
+also verifies the checksum before provisioning the base volume. The checksum
+was obtained from Ubuntu's HTTPS-published checksum list:
+https://cloud-images.ubuntu.com/releases/noble/release-20260926/SHA256SUMS
 Use an existing SSH key pair or create a dedicated one if the path is unused:
 
 ```bash
@@ -69,9 +77,23 @@ terraform apply
 virsh -c qemu:///system net-dhcp-leases default
 ```
 
-Set `ansible_host` in `ansible/inventory.ini` to the VM's current lease and check
-the SSH key path. The committed address is an example from this local lab;
-DHCP addresses can change. Inside the VM, wait for initialization:
+From the repository root, generate the local inventory automatically:
+
+```bash
+cd ..
+./scripts/generate-inventory.py
+# For a different private key:
+# ./scripts/generate-inventory.py --ssh-key ~/.ssh/my-key
+```
+
+The script reads Terraform's `vm_name` output and queries that domain's current
+libvirt DHCP lease. It waits up to 120 seconds and writes an ignored local
+`ansible/inventory.ini`. Rerun it after VM recreation or DHCP changes. No guest
+agent is needed for discovery. For manual configuration, copy
+`ansible/inventory.ini.example` and replace its documentation-only IP and key path.
+The generator requires Terraform state, virsh access and an existing private key.
+
+Inside the VM, wait for initialization:
 
 ```bash
 ssh -i ~/.ssh/terraform-lemp devops@VM_IP
@@ -86,7 +108,7 @@ exit
 From the repository root:
 
 ```bash
-ansible-galaxy collection install -r ansible/requirements.yml
+ansible-galaxy collection install -r ansible/requirements.yml -p .ansible/collections
 ```
 
 `ansible/files/lemp.env` is encrypted and safe to commit. Its Vault password is
@@ -119,6 +141,11 @@ to edit encrypted secrets, rather than decrypting them in place.
 Ansible decrypts the file when copying it to `/opt/lemp/.env`, owned by root with
 mode 0600. The copy task uses `no_log: true`. Vault protects repository secrets
 at rest; the deployed file and container environment still contain credentials.
+
+The 3.8.0 pin includes the upstream fix that stops classifying Compose's
+health-check `Waiting` event as a deployment change. The system's older 3.7.0
+reported a false change even when no containers were recreated. See
+[the upstream changelog](https://github.com/ansible-collections/community.docker/blob/main/CHANGELOG.rst#v380).
 
 ## 3. Deploy the application
 
@@ -160,17 +187,47 @@ sudo docker compose logs --tail=50
 systemctl status qemu-guest-agent --no-pager
 ```
 
-## Persistence and recovery exercises
+## 5. Verify persistence, backup restore and outage recovery
 
-MariaDB stores data in the Compose `db_data` volume. A healthy container does
-not prove persistence or backups. Test persistence separately with disposable
-data and verify it after recreating only the database container. Do not use
-`docker compose down -v` unless you intend to delete database data.
+Recorded results are in [the verification report](docs/evidence/verification.md).
+The report links an unchanged second Ansible run and the recovery transcript.
+These are observations from this local lab, not a guarantee of future runs.
 
-To test failure detection in this lab, stop the `db` service on the VM, run the
-smoke test from the host and expect failure, then start `db`, wait for health,
-and rerun the test expecting success. This is an optional disruptive exercise;
-it is not part of the smoke-test script or normal deployment.
+The repeatable exercise runs **on the VM as root** and briefly interrupts the
+database. It creates a dedicated `portfolio_verification` test schema, refuses
+to overwrite an existing schema with that name, and cleans up its test data.
+
+From the repository root, copy both scripts to a temporary directory on the VM:
+
+```bash
+ssh -i ~/.ssh/terraform-lemp devops@VM_IP 'mkdir -p /tmp/lemp-verification'
+scp -i ~/.ssh/terraform-lemp scripts/smoke-test.sh scripts/db-recovery-test.sh \
+  devops@VM_IP:/tmp/lemp-verification/
+ssh -i ~/.ssh/terraform-lemp devops@VM_IP \
+  'sudo bash /tmp/lemp-verification/db-recovery-test.sh'
+```
+
+The script performs:
+
+1. A baseline HTTP/database smoke test.
+2. A transactional logical backup of the application database and a disposable
+   marker schema into `/var/backups/lemp/` (root-only directory, mode-0600 dump).
+3. Restoration into a separate disposable MariaDB container with an isolated
+   volume, no published ports and no network. Marker values and normalized
+   application dump hashes must match; the live database is never overwritten.
+4. Recreation of the live database container while retaining its named volume;
+   the marker must survive and the application must pass its smoke test.
+5. A database stop; the app must return HTTP 503 and the smoke test must fail.
+6. Database restart, readiness and a successful application smoke test.
+
+An exit trap attempts to restart the database on errors and removes the test
+schema and temporary restore container/volume. Backups remain root-only on the
+VM and are not committed. Review logs and restore service manually if the host
+or Docker fails during cleanup. This is a logical restore demonstration, not
+scheduled backup automation or a full disaster recovery solution.
+
+MariaDB uses the Compose `db_data` volume. Do not use `docker compose down -v`
+unless you intend to delete database data.
 
 Changing MariaDB environment passwords does not rotate users in an initialized
 data volume. Coordinate credential changes with SQL user updates and backups.
@@ -178,13 +235,27 @@ Changing a cloud-init SSH key does not reliably update an initialized guest.
 Changing the Terraform disk layout can replace a boot volume; inspect the plan
 and back up needed data. This project does not implement in-place disk resizing.
 
-## Scope and limitations
+## Reproducibility and scope
 
-This is a local portfolio lab. It demonstrates reproducible infrastructure,
-configuration management, encrypted repository secrets and application-level
-verification. It does not provide TLS, automated backups, monitoring, CI, image
-digest pinning or a production secret manager. Database persistence and outage
-recovery require separate execution and evidence; configuration alone is not proof.
+- Ubuntu cloud image: dated build plus pinned SHA-256, checked on download and
+  by Terraform. Review and update the URL and checksum together for upgrades.
+- NGINX and MariaDB: tag plus immutable digest in Compose.
+- PHP base image: immutable digest in the Dockerfile. Ansible rebuilds the PHP
+  image when the deployed Dockerfile changes; normal unchanged runs use policy.
+- `community.docker`: exactly 3.8.0, with its inventory utility dependency
+  pinned to 1.0.0, in `ansible/requirements.yml`. Project `ansible.cfg` selects
+  the local collection installation; run commands from the repository root.
+- Terraform provider: 0.9.9 selected by the committed lock file.
+
+These pins do not make the entire host byte-for-byte reproducible: APT packages,
+PHP build dependencies and the host toolchain are not fully version-locked.
+Digest pins also need deliberate security updates. This is an amd64 local lab;
+Docker's APT repository configuration currently assumes amd64.
+
+This project demonstrates infrastructure provisioning, Linux configuration,
+encrypted repository secrets, application verification and recovery exercises.
+It does not provide TLS, scheduled backups, monitoring, CI or a production
+secret manager. See the evidence report for exactly what was tested.
 
 Terraform state, local tfvars, private keys, Vault password files, plaintext
 credentials and VM images are ignored. The provider lock and encrypted Vault

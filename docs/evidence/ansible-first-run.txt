@@ -1,0 +1,69 @@
+
+PLAY [Configure LEMP server] ***************************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [lemp-server]
+
+TASK [common : Update APT package cache] ***************************************
+ok: [lemp-server]
+
+TASK [common : Install common system packages] *********************************
+ok: [lemp-server]
+
+TASK [common : Ensure qemu-guest-agent is installed] ***************************
+ok: [lemp-server]
+
+TASK [common : Ensure qemu-guest-agent is running] *****************************
+ok: [lemp-server]
+
+TASK [docker : Install Docker repository prerequisites] ************************
+ok: [lemp-server]
+
+TASK [docker : Create APT keyrings directory] **********************************
+ok: [lemp-server]
+
+TASK [docker : Download Docker official signing key] ***************************
+ok: [lemp-server]
+
+TASK [docker : Configure Docker official APT repository] ***********************
+ok: [lemp-server]
+
+TASK [docker : Refresh APT cache] **********************************************
+skipping: [lemp-server]
+
+TASK [docker : Install Docker Engine and Compose] ******************************
+ok: [lemp-server]
+
+TASK [docker : Ensure Docker service is running] *******************************
+ok: [lemp-server]
+
+TASK [lemp : Create LEMP deployment directories] *******************************
+ok: [lemp-server] => (item=/opt/lemp)
+ok: [lemp-server] => (item=/opt/lemp/app)
+ok: [lemp-server] => (item=/opt/lemp/nginx)
+ok: [lemp-server] => (item=/opt/lemp/php)
+
+TASK [lemp : Copy Docker Compose configuration] ********************************
+ok: [lemp-server]
+
+TASK [lemp : Copy NGINX configuration] *****************************************
+ok: [lemp-server]
+
+TASK [lemp : Copy PHP Dockerfile] **********************************************
+ok: [lemp-server]
+
+TASK [lemp : Copy PHP application] *********************************************
+ok: [lemp-server]
+
+TASK [lemp : Copy database credentials securely] *******************************
+ok: [lemp-server]
+
+TASK [lemp : Deploy LEMP stack with Docker Compose] ****************************
+ok: [lemp-server]
+
+TASK [lemp : Verify LEMP application is healthy] *******************************
+ok: [lemp-server]
+
+PLAY RECAP *********************************************************************
+lemp-server                : ok=19   changed=0    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0   
+

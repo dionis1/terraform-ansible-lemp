@@ -313,9 +313,11 @@ http_response_code($httpCode);
         </p>
 
         <p>
-            Future improvements could include automated smoke tests,
-            Ansible Vault for secrets, CI validation, TLS,
-            monitoring, backups, and image digest pinning.
+            Ansible Vault protects committed database credentials, and automated
+            smoke tests verify HTTP and database connectivity. Recovery exercises
+            verify persistence and backup restore in this local lab. Dependencies
+            are pinned by checksum, digest, or collection version. Future work
+            includes CI validation, TLS, monitoring, and scheduled backups.
         </p>
     </section>
 

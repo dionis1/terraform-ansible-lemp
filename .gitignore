@@ -16,3 +16,12 @@ crash.log
 .vault-pass
 .env.*
 !.env.example
+
+# Generated inventory, backups and local verification artifacts
+/ansible/inventory.ini
+/backups/
+*.sql
+*.sql.gz
+/.ansible/
+/ansible/inventory.ini.tmp
+/terraform/*.download.*
