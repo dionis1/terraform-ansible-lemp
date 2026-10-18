@@ -1,0 +1,74 @@
+---
+- name: Create LEMP deployment directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - /opt/lemp
+    - /opt/lemp/app
+    - /opt/lemp/nginx
+    - /opt/lemp/php
+
+- name: Copy Docker Compose configuration
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../docker/compose.yaml"
+    dest: /opt/lemp/compose.yaml
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Copy NGINX configuration
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../docker/nginx/default.conf"
+    dest: /opt/lemp/nginx/default.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Copy PHP Dockerfile
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../docker/php/Dockerfile"
+    dest: /opt/lemp/php/Dockerfile
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Copy PHP application
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../app/index.php"
+    dest: /opt/lemp/app/index.php
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Copy database credentials securely
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/files/lemp.env"
+    decrypt: true
+    dest: /opt/lemp/.env
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Deploy LEMP stack with Docker Compose
+  community.docker.docker_compose_v2:
+    project_src: /opt/lemp
+    state: present
+    build: policy
+
+- name: Verify LEMP application is healthy
+  ansible.builtin.uri:
+    url: http://127.0.0.1:8080/
+    method: GET
+    status_code: 200
+    return_content: true
+  register: lemp_health
+  until:
+    - lemp_health.status == 200
+    - "'Connected' in lemp_health.content"
+  retries: 12
+  delay: 5

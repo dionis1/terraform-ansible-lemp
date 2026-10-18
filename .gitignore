@@ -11,3 +11,8 @@ crash.log
 *.img
 *.qcow2
 *.iso
+
+# Local Vault password and plaintext credential backups
+.vault-pass
+.env.*
+!.env.example
